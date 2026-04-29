@@ -52,6 +52,48 @@ size_t ModeSchedule::modeAtTime(scalar_t time) const {
   return modeSequence[ind];
 }
 
+scalar_t ModeSchedule::getInitialEventTime() 
+{ 
+  // std::cout << "[getInitialSwingTime()]" << std::endl;
+
+  // scalar_t initialSwingTime = *eventTimes.begin();
+
+  // std::cout << "modeSequence: " << std::endl;
+  // for (int i = 0; i < initModeSchedule_.modeSequence.size(); i++)
+  //   std::cout << "    [" << i << "]: " << initModeSchedule_.modeSequence[i] << std::endl;
+
+  if (eventTimes.size() > 0)
+  {
+    scalar_t initialEventTime = eventTimes[0];
+    return initialEventTime;
+  }
+  else
+  {
+    throw std::runtime_error("ModeSchedule::getInitialEventTime() - eventTimes.size() == 0");
+  }
+}
+
+
+scalar_t ModeSchedule::getFinalEventTime() 
+{ 
+  // std::cout << "[getInitialSwingTime()]" << std::endl;
+
+  // scalar_t initialSwingTime = *eventTimes.begin();
+
+  // std::cout << "modeSequence: " << std::endl;
+  // for (int i = 0; i < initModeSchedule_.modeSequence.size(); i++)
+  //   std::cout << "    [" << i << "]: " << initModeSchedule_.modeSequence[i] << std::endl;
+
+  if (eventTimes.size() > 0)
+  {
+    scalar_t finalEventTime = eventTimes[eventTimes.size() - 1];
+    return finalEventTime;
+  }
+  else
+  {
+    throw std::runtime_error("ModeSchedule::getFinalEventTime() - eventTimes.size() == 0");
+  }
+}
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
@@ -113,5 +155,6 @@ std::pair<scalar_t, scalar_t> findIntersectionToExtendableInterval(const scalar_
     return (initialTime < finalTime) ? std::make_pair(initialTime, finalTime) : emptyInterpolatableInterval;
   }
 }
+
 
 }  // namespace ocs2

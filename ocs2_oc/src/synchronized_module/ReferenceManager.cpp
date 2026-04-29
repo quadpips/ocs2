@@ -29,6 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ocs2_oc/synchronized_module/ReferenceManager.h"
 
+#include <iostream>
+
 namespace ocs2 {
 
 /******************************************************************************************************/
@@ -40,10 +42,14 @@ ReferenceManager::ReferenceManager(TargetTrajectories initialTargetTrajectories,
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-void ReferenceManager::preSolverRun(scalar_t initTime, scalar_t finalTime, const vector_t& initState) {
+void ReferenceManager::preSolverRun(scalar_t initTime, scalar_t finalTime, const vector_t& initState) 
+{
+  // std::cout << "[ReferenceManager::preSolverRun] started " << std::endl;
   targetTrajectories_.updateFromBuffer();
   modeSchedule_.updateFromBuffer();
   modifyReferences(initTime, finalTime, initState, targetTrajectories_.get(), modeSchedule_.get());
+  // std::cout << "[ReferenceManager::preSolverRun] finished " << std::endl;
+
 }
 
 }  // namespace ocs2

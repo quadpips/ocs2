@@ -29,6 +29,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_core/automatic_differentiation/CppAdInterface.h>
 
+#include <boost/process/v1/search_path.hpp>
 #include <boost/filesystem.hpp>
 
 namespace ocs2 {
@@ -95,7 +96,8 @@ void CppAdInterface::createModels(ApproximationOrder approximationOrder, bool ve
 
   // Compiler objects, compile to temporary shared library file to avoid interference between processes
   CppAD::cg::ModelLibraryCSourceGen<scalar_t> libraryCSourceGen(sourceGen);
-  CppAD::cg::GccCompiler<scalar_t> gccCompiler;
+  std::string gccCompilerPath = boost::process::v1::search_path("gcc").string();
+  CppAD::cg::GccCompiler<scalar_t> gccCompiler(gccCompilerPath);
   CppAD::cg::DynamicModelLibraryProcessor<scalar_t> libraryProcessor(libraryCSourceGen, libraryName_ + tmpName_);
   setCompilerOptions(gccCompiler);
 
@@ -189,11 +191,16 @@ matrix_t CppAdInterface::getJacobian(const vector_t& x, const vector_t& p) const
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-ScalarFunctionQuadraticApproximation CppAdInterface::getGaussNewtonApproximation(const vector_t& x, const vector_t& p) const {
+ScalarFunctionQuadraticApproximation CppAdInterface::getGaussNewtonApproximation(const vector_t& x, const vector_t& p) const 
+{
+  // std::cout << "[CppAdInterface::getGaussNewtonApproximation] started" << std::endl;
+
   // Concatenate input
   vector_t xp(variableDim_ + parameterDim_);
   xp << x, p;
   CppAD::cg::ArrayView<scalar_t> xpArrayView(xp.data(), xp.size());
+
+  // std::cout << "[CppAdInterface::getGaussNewtonApproximation] 1" << std::endl;
 
   ScalarFunctionQuadraticApproximation gnApprox;
 
@@ -202,6 +209,8 @@ ScalarFunctionQuadraticApproximation CppAdInterface::getGaussNewtonApproximation
   model_->ForwardZero(xp, valueVector);
   gnApprox.f = 0.5 * valueVector.squaredNorm();
 
+  // std::cout << "[CppAdInterface::getGaussNewtonApproximation] 2" << std::endl;
+
   // Jacobian
   std::vector<scalar_t> sparseJacobian(nnzJacobian_);
   CppAD::cg::ArrayView<scalar_t> sparseJacobianArrayView(sparseJacobian);
@@ -209,11 +218,15 @@ ScalarFunctionQuadraticApproximation CppAdInterface::getGaussNewtonApproximation
   size_t const* cols;
   model_->SparseJacobian(xpArrayView, sparseJacobianArrayView, &rows, &cols);
 
+  // std::cout << "[CppAdInterface::getGaussNewtonApproximation] 3" << std::endl;
+
   // Sparse evaluation of J' * f
   gnApprox.dfdx.setZero(variableDim_);
   for (size_t i = 0; i < nnzJacobian_; i++) {
     gnApprox.dfdx(cols[i]) += sparseJacobian[i] * valueVector(rows[i]);
   }
+
+  // std::cout << "[CppAdInterface::getGaussNewtonApproximation] 4" << std::endl;
 
   /*
    * Sparse construction of the GN matrix, H = J' * J.
@@ -238,8 +251,13 @@ ScalarFunctionQuadraticApproximation CppAdInterface::getGaussNewtonApproximation
     }
   }
 
+  // std::cout << "[CppAdInterface::getGaussNewtonApproximation] 5" << std::endl;
+
   assert(gnApprox.dfdx.allFinite());
   assert(gnApprox.dfdxx.allFinite());
+
+  // std::cout << "[CppAdInterface::getGaussNewtonApproximation] finished" << std::endl;
+
   return gnApprox;
 }
 
@@ -289,15 +307,16 @@ matrix_t CppAdInterface::getHessian(const vector_t& w, const vector_t& x, const 
 /******************************************************************************************************/
 /******************************************************************************************************/
 void CppAdInterface::setFolderNames() {
-  if (!folderName_.empty()) {
-    libraryFolder_ = folderName_ + "/" + modelName_ + "/cppad_generated";
-  } else {
-    libraryFolder_ = modelName_ + "/cppad_generated";
-  }
-  tmpName_ = getUniqueTemporaryName();
-  tmpFolder_ = libraryFolder_ + "/" + tmpName_;
-  libraryName_ = libraryFolder_ + "/" + modelName_ + "_lib";
+    if (!folderName_.empty()) {
+        libraryFolder_ = folderName_ + "/" + modelName_ + "/cppad_generated";
+    } else {
+        libraryFolder_ = modelName_ + "/cppad_generated";
+    }
+    tmpName_ = getUniqueTemporaryName();
+    tmpFolder_ = libraryFolder_ + "/" + tmpName_;
+    libraryName_ = libraryFolder_ + "/" + modelName_ + "_lib";
 }
+
 
 /******************************************************************************************************/
 /******************************************************************************************************/

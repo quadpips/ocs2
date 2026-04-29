@@ -11,13 +11,17 @@
   <license>BSD</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
+  <depend>boost</depend>
+  <!-- <build_depend>cmake_modules</build_depend>
+  <build_depend>cmake_clang_tools</build_depend> -->
 
   <depend>ocs2_thirdparty</depend>
-  <depend>eigen3_cmake_module</depend>
-  <depend>boost</depend>
 
-  <export>
-    <build_type>ament_cmake</build_type>
-  </export>
+  <test_depend>ament_cmake_gtest</test_depend>
+  <test_depend>ament_cmake_pytest</test_depend>
+
+  <export>                               
+   <build_type>ament_cmake</build_type>
+  </export> 
 
 </package>

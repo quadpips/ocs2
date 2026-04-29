@@ -29,9 +29,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 
-#include <algorithm>
-#include <cstring>
-#include <sched.h>
 #include <pthread.h>
 #include <iostream>
 #include <thread>
@@ -45,26 +42,15 @@ namespace ocs2 {
  * @param thread: A reference to the tread.
  */
 inline void setThreadPriority(int priority, pthread_t thread) {
-  if (priority == 0) {
-    return;
-  }
-
-  const int minPriority = sched_get_priority_min(SCHED_FIFO);
-  const int maxPriority = sched_get_priority_max(SCHED_FIFO);
-  const int boundedPriority = std::min(std::max(priority, minPriority), maxPriority);
-  if (boundedPriority != priority) {
-    std::cerr << "WARNING: Requested thread priority " << priority << " is outside SCHED_FIFO bounds ["
-              << minPriority << ", " << maxPriority << "], clamping to " << boundedPriority << "." << std::endl;
-  }
-
   sched_param sched{};
-  sched.sched_priority = boundedPriority;
+  sched.sched_priority = priority;
 
-  const int rc = pthread_setschedparam(thread, SCHED_FIFO, &sched);
-  if (rc != 0) {
-    std::cerr << "WARNING: Failed to set thread priority to " << boundedPriority
-              << " with SCHED_FIFO (pthread_setschedparam rc=" << rc << ": " << std::strerror(rc)
-              << "). Check realtime permissions (e.g., RLIMIT_RTPRIO and PAM limits)." << std::endl;
+  if (priority != 0) {
+    if (pthread_setschedparam(thread, SCHED_FIFO, &sched) != 0) {
+      std::cerr << "WARNING: Failed to set threads priority (one possible reason could be "
+                   "that the user and the group permissions are not set properly.)"
+                << std::endl;
+    }
   }
 }
 

@@ -75,9 +75,14 @@ const ReferenceManagerInterface& MPC_MRT_Interface::getReferenceManager() const 
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-void MPC_MRT_Interface::advanceMpc() {
+void MPC_MRT_Interface::advanceMpc() 
+{
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc] start" << std::endl;
+
   // measure the delay in running MPC
   mpcTimer_.startTimer();
+
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc] 1" << std::endl;
 
   SystemObservation currentObservation;
   {
@@ -85,14 +90,28 @@ void MPC_MRT_Interface::advanceMpc() {
     currentObservation = currentObservation_;
   }
 
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc] pre-MPC" << std::endl;
+
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc] currentObservation: " << std::endl;
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc]               time: " << currentObservation.time << std::endl;
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc]               state: " << currentObservation.state << std::endl;
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc]               input: " << currentObservation.input << std::endl;
+
   bool controllerIsUpdated = mpc_.run(currentObservation.time, currentObservation.state);
+
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc] 2" << std::endl;
+
   if (!controllerIsUpdated) {
     return;
   }
   copyToBuffer(currentObservation);
 
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc] 3" << std::endl;
+
   // measure the delay for sending ROS messages
   mpcTimer_.endTimer();
+
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc] 4" << std::endl;
 
   // check MPC delay and solution window compatibility
   scalar_t timeWindow = mpc_.settings().solutionTimeWindow_;
@@ -102,6 +121,8 @@ void MPC_MRT_Interface::advanceMpc() {
   if (timeWindow < 2.0 * mpcTimer_.getAverageInMilliseconds() * 1e-3) {
     std::cerr << "[MPC_MRT_Interface::advanceMpc] WARNING: The solution time window might be shorter than the MPC delay!\n";
   }
+
+  // std::cerr << "[MPC_MRT_Interface::advanceMpc] 5" << std::endl;
 
   // measure the delay
   if (mpc_.settings().debugPrint_) {

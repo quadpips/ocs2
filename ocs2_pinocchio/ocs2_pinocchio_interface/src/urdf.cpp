@@ -31,7 +31,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <pinocchio/multibody/model.hpp>
 #include <pinocchio/parsers/urdf.hpp>
 
-#include <urdfdom/urdf_parser/urdf_parser.h>
+#include <urdf_parser/urdf_parser.h>
 
 #include "ocs2_pinocchio_interface/urdf.h"
 
@@ -64,8 +64,14 @@ PinocchioInterface getPinocchioInterfaceFromUrdfFile(const std::string& urdfFile
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-PinocchioInterface getPinocchioInterfaceFromUrdfString(const std::string& xmlString) {
+PinocchioInterface getPinocchioInterfaceFromUrdfString(const std::string& xmlString) 
+{
+  // std::cout << "Parsing URDF string: " << xmlString << std::endl;
+
   ::urdf::ModelInterfaceSharedPtr urdfTree = ::urdf::parseURDF(xmlString);
+
+  // std::cout << " urdfTree: " << urdfTree << std::endl;
+  
   if (urdfTree != nullptr) {
     return getPinocchioInterfaceFromUrdfModel(urdfTree);
   } else {
@@ -77,6 +83,8 @@ PinocchioInterface getPinocchioInterfaceFromUrdfString(const std::string& xmlStr
 /******************************************************************************************************/
 /******************************************************************************************************/
 PinocchioInterface getPinocchioInterfaceFromUrdfString(const std::string& xmlString, const PinocchioInterface::JointModel& rootJoint) {
+  // std::cout << "Parsing URDF string: " << xmlString << std::endl;
+
   ::urdf::ModelInterfaceSharedPtr urdfTree = ::urdf::parseURDF(xmlString);
   if (urdfTree != nullptr) {
     return getPinocchioInterfaceFromUrdfModel(urdfTree, rootJoint);
@@ -88,9 +96,12 @@ PinocchioInterface getPinocchioInterfaceFromUrdfString(const std::string& xmlStr
 /******************************************************************************************************/
 /******************************************************************************************************/
 /******************************************************************************************************/
-PinocchioInterface getPinocchioInterfaceFromUrdfModel(const std::shared_ptr<::urdf::ModelInterface>& urdfTree) {
+PinocchioInterface getPinocchioInterfaceFromUrdfModel(const std::shared_ptr<::urdf::ModelInterface>& urdfTree) 
+{
+  // std::cerr << "[getPinocchioInterfaceFromUrdfModel(urdfTree)] " << std::endl;
   pinocchio::ModelTpl<scalar_t> model;
   pinocchio::urdf::buildModel(urdfTree, model);
+  // std::cerr << "[getPinocchioInterfaceFromUrdfModel(urdfTree)] post-buildModel " << std::endl;
   return PinocchioInterface(model, urdfTree);
 }
 
@@ -98,9 +109,12 @@ PinocchioInterface getPinocchioInterfaceFromUrdfModel(const std::shared_ptr<::ur
 /******************************************************************************************************/
 /******************************************************************************************************/
 PinocchioInterface getPinocchioInterfaceFromUrdfModel(const std::shared_ptr<::urdf::ModelInterface>& urdfTree,
-                                                      const PinocchioInterface::JointModel& rootJoint) {
+                                                      const PinocchioInterface::JointModel& rootJoint) 
+{
+  // std::cerr << "[getPinocchioInterfaceFromUrdfModel(urdfTree, rootJoint)] " << std::endl;
   pinocchio::ModelTpl<scalar_t> model;
   pinocchio::urdf::buildModel(urdfTree, rootJoint, model);
+  // std::cerr << "[getPinocchioInterfaceFromUrdfModel(urdfTree, rootJoint)] post-buildModel " << std::endl;
   return PinocchioInterface(model, urdfTree);
 }
 

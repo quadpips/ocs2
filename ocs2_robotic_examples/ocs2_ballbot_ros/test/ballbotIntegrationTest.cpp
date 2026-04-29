@@ -44,7 +44,9 @@ TEST(BallbotIntegrationTest, createDummyMRT) {
   const std::string taskFile =
       ament_index_cpp::get_package_share_directory("ocs2_ballbot") +
       "/config/mpc/task.info";
-  const std::string libFolder = "/tmp/ocs2_ballbot_auto_generated";
+  const std::string libFolder =
+      ament_index_cpp::get_package_share_directory("ocs2_ballbot") +
+      "/auto_generated";
   ballbot::BallbotInterface ballbotInterface(taskFile, libFolder);
 
   MRT_ROS_Interface mrt("ballbot");
@@ -65,7 +67,9 @@ TEST(BallbotIntegrationTest, createMPC) {
   const std::string taskFile =
       ament_index_cpp::get_package_share_directory("ocs2_ballbot") +
       "/config/mpc/task.info";
-  const std::string libFolder = "/tmp/ocs2_ballbot_auto_generated";
+  const std::string libFolder =
+      ament_index_cpp::get_package_share_directory("ocs2_ballbot") +
+      "/auto_generated";
   ballbot::BallbotInterface ballbotInterface(taskFile, libFolder);
 
   // MPC
@@ -82,9 +86,6 @@ TEST(BallbotIntegrationTest, createMPC) {
 }
 
 int main(int argc, char** argv) {
-  rclcpp::init(argc, argv);
   testing::InitGoogleTest(&argc, argv);
-  int result = RUN_ALL_TESTS();
-  rclcpp::shutdown();
-  return result;
+  return RUN_ALL_TESTS();
 }

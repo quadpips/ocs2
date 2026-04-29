@@ -3,23 +3,50 @@ project(ocs2_core)
 
 find_package(ament_cmake REQUIRED)
 find_package(ocs2_thirdparty REQUIRED)
+
+find_package(Boost REQUIRED COMPONENTS
+  system
+  filesystem
+  log_setup
+  log
+)
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-find_package(Boost REQUIRED COMPONENTS system filesystem log_setup log)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+
+
+# pthread and OpenMp
 set(CMAKE_THREAD_PREFER_PTHREAD TRUE)
 set(THREADS_PREFER_PTHREAD_FLAG TRUE)
 find_package(Threads REQUIRED)
+if (Threads_FOUND) # Rename for ament_cmake
+  set(Threads_INCLUDE_DIRS ${THREADS_PTHREADS_INCLUDE_DIR})
+  set(Threads_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
+endif (Threads_FOUND)
 find_package(OpenMP REQUIRED)
 
+# Load ocs2 compile flags
 include(cmake/ocs2_cxx_flags.cmake)
-message(STATUS "OCS2_CXX_FLAGS: ${OCS2_CXX_FLAGS}")
+message(STATUS "OCS2_CXX_FLAGS: " ${OCS2_CXX_FLAGS})
 
 ###########
 ## Build ##
 ###########
+
+include_directories(
+  include
+  test/include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+)
+
+set(dependencies
+  ocs2_thirdparty
+  Boost
+  Eigen3
+  OpenMP_CXX
+  Threads
+)
 
 # Declare a C++ library
 add_library(${PROJECT_NAME}
@@ -107,102 +134,75 @@ add_library(${PROJECT_NAME}
   src/penalties/penalties/SquaredHingePenalty.cpp
   src/thread_support/ThreadPool.cpp
 )
-target_include_directories(${PROJECT_NAME}
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/test/include>
-    $<INSTALL_INTERFACE:include>
-    ${EIGEN3_INCLUDE_DIRS}
-    ${Boost_INCLUDE_DIRS}
-)
 ament_target_dependencies(${PROJECT_NAME}
-  ocs2_thirdparty
-)
-target_link_libraries(${PROJECT_NAME}
-  PUBLIC
-    Boost::system
-    Boost::filesystem
-    Boost::log_setup
-    Boost::log
-    OpenMP::OpenMP_CXX
-    Threads::Threads
+    ${dependencies}
 )
 target_compile_options(${PROJECT_NAME} PUBLIC ${OCS2_CXX_FLAGS})
+
+add_executable(${PROJECT_NAME}_lintTarget
+  src/lintTarget.cpp
+)
+ament_target_dependencies(${PROJECT_NAME}_lintTarget
+    ${dependencies}
+)
+target_link_libraries(${PROJECT_NAME}_lintTarget
+  ${PROJECT_NAME}
+)
+
+#########################
+###   CLANG TOOLING   ###
+#########################
+find_package(cmake_clang_tools QUIET)
+if(cmake_clang_tools_FOUND)
+  message(STATUS "Run clang tooling for target " ${PROJECT_NAME}_lintTarget)
+  add_clang_tooling(
+    TARGETS
+      ${PROJECT_NAME}
+      ${PROJECT_NAME}_lintTarget
+    SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/include
+    CT_HEADER_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
+    CF_WERROR
+  )
+endif(cmake_clang_tools_FOUND)
 
 #############
 ## Install ##
 #############
 
 install(
-  TARGETS ${PROJECT_NAME}
-  EXPORT export_${PROJECT_NAME}
-  ARCHIVE DESTINATION lib
+  TARGETS ocs2_core
+  EXPORT export_ocs2_core
   LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin
+  INCLUDES DESTINATION include/ocs2_core
 )
 
-install(
-  EXPORT export_${PROJECT_NAME}
-  DESTINATION share/${PROJECT_NAME}/cmake
-)
+install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 
-install(DIRECTORY include/${PROJECT_NAME}/
+install(DIRECTORY test/include/
   DESTINATION include/${PROJECT_NAME}
 )
-
-install(DIRECTORY test/include/${PROJECT_NAME}/
-  DESTINATION include/${PROJECT_NAME}
-)
-
-install(FILES cmake/ocs2_cxx_flags.cmake
-  DESTINATION share/${PROJECT_NAME}/cmake
-)
-
-ament_export_include_directories(
-  include
-  ${EIGEN3_INCLUDE_DIRS}
-)
-ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(
-  ocs2_thirdparty
-  Boost
-  Eigen3
-  OpenMP
-  Threads
-)
-
-ament_package(CONFIG_EXTRAS "cmake/ocs2_cxx_flags.cmake")
 
 #############
 ## Testing ##
 #############
-## Info ==============================
-## to run tests, cd package folder and run
-## $ catkin build -DCMAKE_BUILD_TYPE=RelWithDebInfo --this
-## $ catkin run_tests --no-deps --this
-## to see the summary of unit test results run
-## $ catkin_test_results ../../../build/ocs2_core
-
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
+find_package(ament_lint_auto REQUIRED)
+ament_lint_auto_find_test_dependencies()
+find_package(ament_cmake_gtest REQUIRED)
 
 ament_add_gtest(test_control
   test/control/testLinearController.cpp
   test/control/testFeedforwardController.cpp
 )
-target_link_libraries(test_control
-  ${PROJECT_NAME}
-  gtest_main
-)
+target_link_libraries(test_control ${PROJECT_NAME})
+ament_target_dependencies(test_control ${dependencies})
 
 ament_add_gtest(initialization_unittest
   test/initialization/InitializationTest.cpp
 )
-target_link_libraries(initialization_unittest
-  ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  gtest_main
-)
+target_link_libraries(initialization_unittest ${PROJECT_NAME})
+ament_target_dependencies(initialization_unittest ${dependencies})
 
 ament_add_gtest(test_integration
   test/integration/testSensitivityIntegrator.cpp
@@ -210,39 +210,28 @@ ament_add_gtest(test_integration
   test/integration/testRungeKuttaDormandPrince5.cpp
   test/integration/TrapezoidalIntegrationTest.cpp
 )
-target_link_libraries(test_integration
-  ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  gtest_main
-)
+target_link_libraries(test_integration ${PROJECT_NAME})
+ament_target_dependencies(test_integration ${dependencies})
 
 ament_add_gtest(interpolation_unittest
   test/misc/testInterpolation.cpp
 )
-target_link_libraries(interpolation_unittest
-  ${PROJECT_NAME}
-  gtest_main
-)
+target_link_libraries(interpolation_unittest ${PROJECT_NAME})
+ament_target_dependencies(interpolation_unittest ${dependencies})
 
 ament_add_gtest(${PROJECT_NAME}_cppadcg
   test/cppad_cg/testCppADCG_dynamics.cpp
   test/cppad_cg/testSparsityHelpers.cpp
   test/cppad_cg/testCppAdInterface.cpp
 )
-target_link_libraries(${PROJECT_NAME}_cppadcg
-  ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  -lm -ldl
-  gtest_main
-)
+target_link_libraries(${PROJECT_NAME}_cppadcg ${PROJECT_NAME})
+ament_target_dependencies(${PROJECT_NAME}_cppadcg ${dependencies})
 
 ament_add_gtest(test_transferfunctionbase
   test/dynamics/testTransferfunctionBase.cpp
 )
-target_link_libraries(test_transferfunctionbase
-  ${PROJECT_NAME}
-  gtest_main
-)
+target_link_libraries(test_transferfunctionbase ${PROJECT_NAME})
+ament_target_dependencies(test_transferfunctionbase ${dependencies})
 
 ament_add_gtest(${PROJECT_NAME}_loopshaping
   test/loopshaping/testLoopshapingConfiguration.cpp
@@ -255,12 +244,8 @@ ament_add_gtest(${PROJECT_NAME}_loopshaping
   test/loopshaping/testLoopshapingFilterDynamics.cpp
   test/loopshaping/testLoopshapingPreComputation.cpp
 )
-target_link_libraries(${PROJECT_NAME}_loopshaping
-  ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  -lstdc++fs
-  gtest_main
-)
+target_link_libraries(${PROJECT_NAME}_loopshaping ${PROJECT_NAME} ${Boost_LIBRARIES} -lstdc++fs)
+ament_target_dependencies(${PROJECT_NAME}_loopshaping ${dependencies} Boost)
 
 ament_add_gtest(${PROJECT_NAME}_test_misc
   test/misc/testInterpolation.cpp
@@ -271,9 +256,8 @@ ament_add_gtest(${PROJECT_NAME}_test_misc
 )
 target_link_libraries(${PROJECT_NAME}_test_misc
   ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  gtest_main
 )
+ament_target_dependencies(${PROJECT_NAME}_test_misc ${dependencies})
 
 ament_add_gtest(test_dynamics
   test/dynamics/testSystemDynamicsLinearizer.cpp
@@ -281,8 +265,8 @@ ament_add_gtest(test_dynamics
 )
 target_link_libraries(test_dynamics
   ${PROJECT_NAME}
-  gtest_main
 )
+ament_target_dependencies(test_dynamics ${dependencies})
 
 ament_add_gtest(test_cost
   test/cost/testCostCollection.cpp
@@ -291,9 +275,8 @@ ament_add_gtest(test_cost
 )
 target_link_libraries(test_cost
   ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  gtest_main
 )
+ament_target_dependencies(test_cost ${dependencies})
 
 ament_add_gtest(test_constraint
   test/constraint/testConstraintCollection.cpp
@@ -302,41 +285,40 @@ ament_add_gtest(test_constraint
 )
 target_link_libraries(test_constraint
   ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  gtest_main
 )
+ament_target_dependencies(test_constraint ${dependencies})
 
 ament_add_gtest(test_metrics
   test/model_data/testMetrics.cpp
 )
 target_link_libraries(test_metrics
   ${PROJECT_NAME}
-  gtest_main
 )
+ament_target_dependencies(test_metrics ${dependencies})
 
 ament_add_gtest(test_multiplier
   test/model_data/testMultiplier.cpp
 )
 target_link_libraries(test_multiplier
   ${PROJECT_NAME}
-  gtest_main
 )
+ament_target_dependencies(test_multiplier ${dependencies})
 
 ament_add_gtest(test_ModelData
   test/model_data/testModelData.cpp
 )
 target_link_libraries(test_ModelData
   ${PROJECT_NAME}
-  gtest_main
 )
+ament_target_dependencies(test_ModelData ${dependencies})
 
 ament_add_gtest(test_ModeSchedule
   test/reference/testModeSchedule.cpp
 )
 target_link_libraries(test_ModeSchedule
-  ${PROJECT_NAME}
-  gtest_main
+    ${PROJECT_NAME}
 )
+ament_target_dependencies(test_ModeSchedule ${dependencies})
 
 ament_add_gtest(test_softConstraint
   test/soft_constraint/testSoftConstraint.cpp
@@ -344,9 +326,8 @@ ament_add_gtest(test_softConstraint
 )
 target_link_libraries(test_softConstraint
   ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  gtest_main
 )
+ament_target_dependencies(test_softConstraint ${dependencies})
 
 ament_add_gtest(${PROJECT_NAME}_test_thread_support
   test/thread_support/testBufferedValue.cpp
@@ -355,9 +336,8 @@ ament_add_gtest(${PROJECT_NAME}_test_thread_support
 )
 target_link_libraries(${PROJECT_NAME}_test_thread_support
   ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  gtest_main
 )
+ament_target_dependencies(${PROJECT_NAME}_test_thread_support ${dependencies})
 
 ament_add_gtest(${PROJECT_NAME}_test_core
   test/testPrecomputation.cpp
@@ -365,7 +345,10 @@ ament_add_gtest(${PROJECT_NAME}_test_core
   )
 target_link_libraries(${PROJECT_NAME}_test_core
   ${PROJECT_NAME}
-  ${Boost_LIBRARIES}
-  gtest_main
 )
-endif()
+ament_target_dependencies(${PROJECT_NAME}_test_core ${dependencies})
+
+ament_export_dependencies(${dependencies})  
+ament_export_include_directories("include/${PROJECT_NAME}")
+ament_export_targets(export_ocs2_core HAS_LIBRARY_TARGET)
+ament_package(CONFIG_EXTRAS "cmake/ocs2_cxx_flags.cmake")

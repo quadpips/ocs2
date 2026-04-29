@@ -54,14 +54,8 @@ void RosReferenceManager::subscribe(const rclcpp::Node::SharedPtr& node) {
   node_ = node;
   // ModeSchedule
   auto modeScheduleCallback = [this](const ocs2_msgs::msg::ModeSchedule& msg) {
-    try {
-      auto modeSchedule = ros_msg_conversions::readModeScheduleMsg(msg);
-      referenceManagerPtr_->setModeSchedule(std::move(modeSchedule));
-    } catch (const std::exception& e) {
-      RCLCPP_ERROR_STREAM(node_->get_logger(),
-                          "[RosReferenceManager] Dropping invalid mode schedule: "
-                              << e.what());
-    }
+    auto modeSchedule = ros_msg_conversions::readModeScheduleMsg(msg);
+    referenceManagerPtr_->setModeSchedule(std::move(modeSchedule));
   };
   modeScheduleSubscriber_ =
       node_->create_subscription<ocs2_msgs::msg::ModeSchedule>(
@@ -69,17 +63,69 @@ void RosReferenceManager::subscribe(const rclcpp::Node::SharedPtr& node) {
 
   // TargetTrajectories
   auto targetTrajectoriesCallback =
-      [this](const ocs2_msgs::msg::MpcTargetTrajectories& msg) {
-        try {
-          auto targetTrajectories =
-              ros_msg_conversions::readTargetTrajectoriesMsg(msg);
-          referenceManagerPtr_->setTargetTrajectories(
-              std::move(targetTrajectories));
-        } catch (const std::exception& e) {
-          RCLCPP_ERROR_STREAM(node_->get_logger(),
-                              "[RosReferenceManager] Dropping invalid target trajectories: "
-                                  << e.what());
-        }
+      [this](const ocs2_msgs::msg::MpcTargetTrajectories& msg) 
+      {
+        auto targetTrajectories = ros_msg_conversions::readTargetTrajectoriesMsg(msg);
+        referenceManagerPtr_->setTargetTrajectories(std::move(targetTrajectories));
+
+        // auto tmpTargetTrajectories = ros_msg_conversions::readTargetTrajectoriesMsg(msg);
+        // std::string stateStr = "Received new target trajectories (size: " + 
+        //                        std::to_string(tmpTargetTrajectories.timeTrajectory.size()) + "):";
+        // for (int i = 0; i < tmpTargetTrajectories.timeTrajectory.size(); i++) 
+        // {
+        //   stateStr += "\n";
+        //   stateStr += "  time: " + std::to_string(tmpTargetTrajectories.timeTrajectory[i]) + "\n";
+        //   stateStr += "     x: " + std::to_string(tmpTargetTrajectories.stateTrajectory[i][0]) + ", " + 
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][1]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][2]) + ", " + 
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][3]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][4]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][5]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][6]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][7]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][8]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][9]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][10]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][11]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][12]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][13]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][14]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][15]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][16]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][17]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][18]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][19]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][20]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][21]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][22]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.stateTrajectory[i][23]);
+        //   stateStr += "     u: " + std::to_string(tmpTargetTrajectories.inputTrajectory[i][0]) + ", " + 
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][1]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][2]) + ", " + 
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][3]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][4]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][5]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][6]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][7]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][8]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][9]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][10]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][11]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][12]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][13]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][14]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][15]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][16]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][17]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][18]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][19]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][20]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][21]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][22]) + ", " +
+        //                           std::to_string(tmpTargetTrajectories.inputTrajectory[i][23]);
+        // }
+
+        // RCLCPP_INFO(node_->get_logger(), "%s", stateStr.c_str());
       };
   targetTrajectoriesSubscriber_ =
       node_->create_subscription<ocs2_msgs::msg::MpcTargetTrajectories>(

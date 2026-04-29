@@ -76,13 +76,51 @@ scalar_t StateInputCostGaussNewtonAd::getValue(scalar_t time, const vector_t& st
 ScalarFunctionQuadraticApproximation StateInputCostGaussNewtonAd::getQuadraticApproximation(scalar_t time, const vector_t& state,
                                                                                             const vector_t& input,
                                                                                             const TargetTrajectories& targetTrajectories,
-                                                                                            const PreComputation& preComputation) const {
+                                                                                            const PreComputation& preComputation) const 
+{
+  // std::cout << "[StateInputCostGaussNewtonAd::getQuadraticApproximation] started" << std::endl;
+
   const auto stateDim = state.rows();
   const auto inputDim = input.rows();
   vector_t timeStateInput(1 + stateDim + inputDim);
   timeStateInput << time, state, input;
+
+  // std::cout << "[StateInputCostGaussNewtonAd::getQuadraticApproximation] 1" << std::endl;
+
+  // std::cout << "   time: " << time << std::endl;
+  // std::cout << "   state: " << std::endl;
+  // std::cout << "     torso orientation: " << state.segment(0,3).transpose() << std::endl;
+  // std::cout << "     torso position:    " << state.segment(3,3).transpose() << std::endl;
+  // std::cout << "     torso angular vel: " << state.segment(6,3).transpose() << std::endl;
+  // std::cout << "     torso linear vel:  " << state.segment(9,3).transpose() << std::endl;
+  // std::cout << "     leg 0 joint pos:   " << state.segment(12,3).transpose() << std::endl;
+  // std::cout << "     leg 1 joint pos:   " << state.segment(15,3).transpose() << std::endl;
+  // std::cout << "     leg 2 joint pos:   " << state.segment(18,3).transpose() << std::endl;
+  // std::cout << "     leg 3 joint pos:   " << state.segment(21,3).transpose() << std::endl;
+  // std::cout << "     leg 0 joint vel:   " << state.segment(24,3).transpose() << std::endl;
+  // std::cout << "     leg 1 joint vel:   " << state.segment(27,3).transpose() << std::endl;
+  // std::cout << "     leg 2 joint vel:   " << state.segment(30,3).transpose() << std::endl;
+  // std::cout << "     leg 3 joint vel:   " << state.segment(33,3).transpose() << std::endl;
+  // std::cout << "   input: " << std::endl;
+  // std::cout << "     leg 0 contact force: " << input.segment(0,3).transpose() << std::endl;
+  // std::cout << "     leg 1 contact force: " << input.segment(3,3).transpose() << std::endl;
+  // std::cout << "     leg 2 contact force: " << input.segment(6,3).transpose() << std::endl;
+  // std::cout << "     leg 3 contact force: " << input.segment(9,3).transpose() << std::endl;
+  // std::cout << "     leg 0 foot vel:      " << input.segment(12,3).transpose() << std::endl;
+  // std::cout << "     leg 1 foot vel:      " << input.segment(15,3).transpose() << std::endl;
+  // std::cout << "     leg 2 foot vel:      " << input.segment(18,3).transpose() << std::endl;
+  // std::cout << "     leg 3 foot vel:      " << input.segment(21,3).transpose() << std::endl;
+
+
   const auto parameters = getParameters(time, targetTrajectories, preComputation);
+
+  // std::cout << "[StateInputCostGaussNewtonAd::getQuadraticApproximation] 2" << std::endl;
+
+  // std::cout << "     parameters: " << parameters.transpose() << std::endl;
+
   const auto gnApproximation = adInterfacePtr_->getGaussNewtonApproximation(timeStateInput, parameters);
+
+  // std::cout << "[StateInputCostGaussNewtonAd::getQuadraticApproximation] 3" << std::endl;
 
   ScalarFunctionQuadraticApproximation L;
   L.f = gnApproximation.f;
@@ -91,6 +129,9 @@ ScalarFunctionQuadraticApproximation StateInputCostGaussNewtonAd::getQuadraticAp
   L.dfdxx = gnApproximation.dfdxx.block(1, 1, stateDim, stateDim);
   L.dfdux.noalias() = gnApproximation.dfdxx.block(1 + stateDim, 1, inputDim, stateDim);
   L.dfduu.noalias() = gnApproximation.dfdxx.block(1 + stateDim, 1 + stateDim, inputDim, inputDim);
+
+  // std::cout << "[StateInputCostGaussNewtonAd::getQuadraticApproximation] finished" << std::endl;
+
   return L;
 }
 

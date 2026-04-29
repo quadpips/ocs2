@@ -11,10 +11,12 @@
   <license>TODO</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  <buildtool_depend>ament_cmake_python</buildtool_depend>
+  <build_depend>cmake_clang_tools</build_depend>
 
   <depend>pybind11_vendor</depend>
 
+  <depend>rclcpp</depend>
+  <depend>rclpy</depend>
   <depend>ocs2_core</depend>
   <depend>ocs2_mpc</depend>
   <depend>ocs2_ddp</depend>
@@ -22,12 +24,9 @@
   <depend>ocs2_sqp</depend>
   <depend>ocs2_python_interface</depend>
   <depend>ocs2_robotic_tools</depend>
-  <depend>eigen3_cmake_module</depend>
-  <depend>boost</depend>
 
-  <test_depend>ament_cmake_gtest</test_depend>
-  <export>
-    <build_type>ament_cmake</build_type>
-  </export>
+  <export>                               
+   <build_type>ament_cmake</build_type>
+  </export> 
 
 </package>

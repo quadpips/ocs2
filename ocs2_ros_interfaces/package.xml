@@ -1,6 +1,6 @@
 <?xml version="1.0"?>
 
-<package format="3">
+<package format="2">
 
   <name>ocs2_ros_interfaces</name>
   <version>0.0.0</version>
@@ -13,8 +13,10 @@
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <build_depend>cmake_modules</build_depend>
+  <build_depend>cmake_clang_tools</build_depend>
+
   <depend>rclcpp</depend>
-  <depend>diagnostic_msgs</depend>
   <depend>ocs2_msgs</depend>
   <depend>ocs2_core</depend>
   <depend>ocs2_mpc</depend>
@@ -22,8 +24,7 @@
   <depend>visualization_msgs</depend>
   <depend>geometry_msgs</depend>
   <depend>interactive_markers</depend>
-  <depend>eigen3_cmake_module</depend>
-  <depend>boost</depend>
+  <exec_depend>rqt_multiplot</exec_depend>
   <exec_depend>ros2launch</exec_depend>
 
   <export>                               

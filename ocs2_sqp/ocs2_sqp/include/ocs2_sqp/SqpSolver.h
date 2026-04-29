@@ -40,7 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ocs2_oc/oc_solver/SolverBase.h>
 #include <ocs2_oc/search_strategy/FilterLinesearch.h>
 
-#include <hpipm_catkin/HpipmInterface.h>
+#include <hpipm_colcon/HpipmInterface.h>
 
 #include "ocs2_sqp/SqpLogging.h"
 #include "ocs2_sqp/SqpSettings.h"
@@ -62,6 +62,10 @@ class SqpSolver : public SolverBase {
   ~SqpSolver() override;
 
   void reset() override;
+
+  void setInitialGuess(const PrimalSolution & primalSolution);
+
+  scalar_t getTotalTimeInMilliseconds() const;
 
   scalar_t getFinalTime() const override { return primalSolution_.timeTrajectory_.back(); };
 

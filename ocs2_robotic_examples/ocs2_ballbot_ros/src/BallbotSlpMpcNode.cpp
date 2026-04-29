@@ -34,8 +34,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ament_index_cpp/get_package_share_directory.hpp>
 
-#include <stdexcept>
-
 #include "rclcpp/rclcpp.hpp"
 
 int main(int argc, char** argv) {
@@ -58,8 +56,9 @@ int main(int argc, char** argv) {
   const std::string taskFile =
       ament_index_cpp::get_package_share_directory("ocs2_ballbot") +
       "/config/" + taskFileFolderName + "/task.info";
-  const std::string libFolder = node->declare_parameter<std::string>(
-      "libFolder", "/tmp/ocs2_ballbot_auto_generated");
+  const std::string libFolder =
+      ament_index_cpp::get_package_share_directory("ocs2_ballbot") +
+      "/auto_generated";
   ocs2::ballbot::BallbotInterface ballbotInterface(taskFile, libFolder);
 
   // ROS ReferenceManager

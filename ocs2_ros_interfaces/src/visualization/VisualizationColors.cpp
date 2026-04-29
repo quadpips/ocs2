@@ -31,7 +31,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 namespace ocs2 {
 
-std::array<double, 3> getRGB(Color color) {
+std::array<double, 3> getRGB(Color color) 
+{
   switch (color) {
     case Color::blue:
       return {0, 0.4470, 0.7410};

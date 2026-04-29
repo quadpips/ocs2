@@ -66,6 +66,10 @@ struct ModeSchedule {
    */
   size_t modeAtTime(scalar_t time) const;
 
+  scalar_t getInitialEventTime();
+
+  scalar_t getFinalEventTime();
+
   /** Clears modeSchedule */
   void clear() {
     eventTimes.clear();

@@ -72,6 +72,21 @@ Eigen::Matrix<SCALAR_T, 3, 4> quaternionDistanceJacobian(const Eigen::Quaternion
 }
 
 /**
+ * Compute the quaternion corresponding to euler angles xyz
+ *
+ * @param [in] eulerAnglesXyz
+ * @return The corresponding quaternion
+ */
+template <typename SCALAR_T>
+Eigen::Quaternion<SCALAR_T> getQuaternionFromEulerAnglesXyz(const Eigen::Matrix<SCALAR_T, 3, 1>& eulerAnglesXyz) {
+  // clang-format off
+  return Eigen::AngleAxis<SCALAR_T>(eulerAnglesXyz(2), Eigen::Matrix<SCALAR_T, 3, 1>::UnitZ()) *
+         Eigen::AngleAxis<SCALAR_T>(eulerAnglesXyz(1), Eigen::Matrix<SCALAR_T, 3, 1>::UnitY()) *
+         Eigen::AngleAxis<SCALAR_T>(eulerAnglesXyz(0), Eigen::Matrix<SCALAR_T, 3, 1>::UnitX());
+  // clang-format on
+}
+
+/**
  * Compute the quaternion corresponding to euler angles zyx
  *
  * @param [in] eulerAnglesZyx
@@ -84,6 +99,38 @@ Eigen::Quaternion<SCALAR_T> getQuaternionFromEulerAnglesZyx(const Eigen::Matrix<
          Eigen::AngleAxis<SCALAR_T>(eulerAnglesZyx(1), Eigen::Matrix<SCALAR_T, 3, 1>::UnitY()) *
          Eigen::AngleAxis<SCALAR_T>(eulerAnglesZyx(2), Eigen::Matrix<SCALAR_T, 3, 1>::UnitX());
   // clang-format on
+}
+
+/**
+ * Compute the rotation matrix corresponding to euler angles xyz
+ *
+ * @param [in] eulerAnglesZyx
+ * @return The corresponding rotation matrix
+ */
+template <typename SCALAR_T>
+Eigen::Matrix<SCALAR_T, 3, 3> getRotationMatrixFromXyzEulerAngles(const Eigen::Matrix<SCALAR_T, 3, 1>& eulerAngles) 
+{
+  const SCALAR_T x = eulerAngles(0);
+  const SCALAR_T y = eulerAngles(1);
+  const SCALAR_T z = eulerAngles(2);
+
+  const SCALAR_T c1 = cos(z);
+  const SCALAR_T c2 = cos(y);
+  const SCALAR_T c3 = cos(x);
+  const SCALAR_T s1 = sin(z);
+  const SCALAR_T s2 = sin(y);
+  const SCALAR_T s3 = sin(x);
+
+  const SCALAR_T s2s3 = s2 * s3;
+  const SCALAR_T s2c3 = s2 * c3;
+
+  // clang-format off
+  Eigen::Matrix<SCALAR_T, 3, 3> rotationMatrix;
+  rotationMatrix << c1 * c2,      c1 * s2s3 - s1 * c3,       c1 * s2c3 + s1 * s3,
+                    s1 * c2,      s1 * s2s3 + c1 * c3,       s1 * s2c3 - c1 * s3,
+                        -s2,                  c2 * s3,                   c2 * c3;
+  // clang-format on
+  return rotationMatrix;
 }
 
 /**

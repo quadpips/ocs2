@@ -34,11 +34,16 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ocs2_oc/approximate_model/ChangeOfInputVariables.h"
 #include "ocs2_oc/approximate_model/LinearQuadraticApproximator.h"
 
+#include <iostream>
+
 namespace ocs2 {
 namespace multiple_shooting {
 
 Transcription setupIntermediateNode(OptimalControlProblem& optimalControlProblem, DynamicsSensitivityDiscretizer& sensitivityDiscretizer,
-                                    scalar_t t, scalar_t dt, const vector_t& x, const vector_t& x_next, const vector_t& u) {
+                                    scalar_t t, scalar_t dt, const vector_t& x, const vector_t& x_next, const vector_t& u) 
+{
+  // std::cerr << "[Transcription::setupIntermediateNode] started" << std::endl;
+
   // Results and short-hand notation
   Transcription transcription;
   auto& cost = transcription.cost;
@@ -49,46 +54,66 @@ Transcription setupIntermediateNode(OptimalControlProblem& optimalControlProblem
   auto& stateIneqConstraints = transcription.stateIneqConstraints;
   auto& stateInputIneqConstraints = transcription.stateInputIneqConstraints;
 
+  // std::cerr << "[Transcription::setupIntermediateNode] 1" << std::endl;
+
   // Dynamics
   // Discretization returns x_{k+1} = A_{k} * dx_{k} + B_{k} * du_{k} + b_{k}
   dynamics = sensitivityDiscretizer(*optimalControlProblem.dynamicsPtr, t, x, u, dt);
   dynamics.f -= x_next;  // make it dx_{k+1} = ...
 
+  // std::cerr << "[Transcription::setupIntermediateNode] 2" << std::endl;
+
   // Precomputation for other terms
   constexpr auto request = Request::Cost + Request::SoftConstraint + Request::Constraint + Request::Approximation;
   optimalControlProblem.preComputationPtr->request(request, t, x, u);
+
+  // std::cerr << "[Transcription::setupIntermediateNode] 3" << std::endl;
 
   // Costs: Approximate the integral with forward euler
   cost = approximateCost(optimalControlProblem, t, x, u);
   cost *= dt;
 
+  // std::cerr << "[Transcription::setupIntermediateNode] 4" << std::endl;
+
   // State equality constraints
-  if (!optimalControlProblem.stateEqualityConstraintPtr->empty()) {
+  if (!optimalControlProblem.stateEqualityConstraintPtr->empty()) 
+  {
     constraintsSize.stateEq = optimalControlProblem.stateEqualityConstraintPtr->getTermsSize(t);
     stateEqConstraints =
         optimalControlProblem.stateEqualityConstraintPtr->getLinearApproximation(t, x, *optimalControlProblem.preComputationPtr);
   }
 
+  // std::cerr << "[Transcription::setupIntermediateNode] 5" << std::endl;
+
   // State-input equality constraints
-  if (!optimalControlProblem.equalityConstraintPtr->empty()) {
+  if (!optimalControlProblem.equalityConstraintPtr->empty()) 
+  {
     constraintsSize.stateInputEq = optimalControlProblem.equalityConstraintPtr->getTermsSize(t);
     stateInputEqConstraints =
         optimalControlProblem.equalityConstraintPtr->getLinearApproximation(t, x, u, *optimalControlProblem.preComputationPtr);
   }
 
+  // std::cerr << "[Transcription::setupIntermediateNode] 6" << std::endl;
+
   // State inequality constraints.
-  if (!optimalControlProblem.stateInequalityConstraintPtr->empty()) {
+  if (!optimalControlProblem.stateInequalityConstraintPtr->empty()) 
+  {
     constraintsSize.stateIneq = optimalControlProblem.stateInequalityConstraintPtr->getTermsSize(t);
     stateIneqConstraints =
         optimalControlProblem.stateInequalityConstraintPtr->getLinearApproximation(t, x, *optimalControlProblem.preComputationPtr);
   }
 
+  // std::cerr << "[Transcription::setupIntermediateNode] 7" << std::endl;
+
   // State-input inequality constraints.
-  if (!optimalControlProblem.inequalityConstraintPtr->empty()) {
+  if (!optimalControlProblem.inequalityConstraintPtr->empty()) 
+  {
     constraintsSize.stateInputIneq = optimalControlProblem.inequalityConstraintPtr->getTermsSize(t);
     stateInputIneqConstraints =
         optimalControlProblem.inequalityConstraintPtr->getLinearApproximation(t, x, u, *optimalControlProblem.preComputationPtr);
   }
+
+  // std::cerr << "[Transcription::setupIntermediateNode] 8" << std::endl;
 
   return transcription;
 }

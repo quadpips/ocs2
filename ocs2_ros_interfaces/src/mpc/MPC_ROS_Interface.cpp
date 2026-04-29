@@ -31,120 +31,9 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "ocs2_ros_interfaces/common/RosMsgConversions.h"
 
-#include <stdexcept>
-#include <sstream>
-
 const rclcpp::Logger LOGGER = rclcpp::get_logger("MPC_ROS_Interface");
 
 namespace ocs2 {
-namespace {
-
-size_t inferDimFromTrajectory(const vector_array_t& trajectory,
-                              bool& hasSamples) {
-  hasSamples = !trajectory.empty();
-  return hasSamples ? trajectory.front().size() : 0;
-}
-
-[[noreturn]] void throwTargetTrajectoriesError(const std::string& message) {
-  throw std::runtime_error(
-      std::string("[MPC_ROS_Interface] Invalid reset target trajectories: ") +
-      message);
-}
-
-void validateResetTargetTrajectories(
-    const TargetTrajectories& targetTrajectories,
-    const TargetTrajectories& referenceTrajectories) {
-  const auto N = targetTrajectories.timeTrajectory.size();
-  if (N == 0) {
-    throwTargetTrajectoriesError("timeTrajectory is empty.");
-  }
-  if (targetTrajectories.stateTrajectory.size() != N) {
-    throwTargetTrajectoriesError("stateTrajectory length does not match timeTrajectory.");
-  }
-  if (!targetTrajectories.inputTrajectory.empty() &&
-      targetTrajectories.inputTrajectory.size() != N) {
-    throwTargetTrajectoriesError("inputTrajectory length does not match timeTrajectory.");
-  }
-
-  for (size_t i = 1; i < N; i++) {
-    if (targetTrajectories.timeTrajectory[i] <
-        targetTrajectories.timeTrajectory[i - 1]) {
-      std::ostringstream stream;
-      stream << "timeTrajectory must be non-decreasing, but t[" << i - 1
-             << "]=" << targetTrajectories.timeTrajectory[i - 1] << " and t["
-             << i << "]=" << targetTrajectories.timeTrajectory[i] << ".";
-      throwTargetTrajectoriesError(stream.str());
-    }
-  }
-
-  const auto stateDim = targetTrajectories.stateTrajectory.front().size();
-  for (size_t i = 0; i < N; i++) {
-    const auto sampleDim = targetTrajectories.stateTrajectory[i].size();
-    if (sampleDim != stateDim) {
-      std::ostringstream stream;
-      stream << "stateTrajectory dimension mismatch at index " << i
-             << ": expected " << stateDim << ", got " << sampleDim << ".";
-      throwTargetTrajectoriesError(stream.str());
-    }
-  }
-
-  size_t inputDim = 0;
-  if (!targetTrajectories.inputTrajectory.empty()) {
-    inputDim = targetTrajectories.inputTrajectory.front().size();
-    for (size_t i = 0; i < N; i++) {
-      const auto sampleDim = targetTrajectories.inputTrajectory[i].size();
-      if (sampleDim != inputDim) {
-        std::ostringstream stream;
-        stream << "inputTrajectory dimension mismatch at index " << i
-               << ": expected " << inputDim << ", got " << sampleDim << ".";
-        throwTargetTrajectoriesError(stream.str());
-      }
-    }
-  }
-
-  bool hasReferenceState = false;
-  const auto expectedStateDim =
-      inferDimFromTrajectory(referenceTrajectories.stateTrajectory,
-                            hasReferenceState);
-  if (hasReferenceState && stateDim != expectedStateDim) {
-    std::ostringstream stream;
-    stream << "stateTrajectory dimension mismatch vs active reference: expected "
-           << expectedStateDim << ", got " << stateDim << ".";
-    throwTargetTrajectoriesError(stream.str());
-  }
-
-  bool hasReferenceInput = false;
-  const auto expectedInputDim =
-      inferDimFromTrajectory(referenceTrajectories.inputTrajectory,
-                            hasReferenceInput);
-  if (hasReferenceInput && !targetTrajectories.inputTrajectory.empty() &&
-      inputDim != expectedInputDim) {
-    std::ostringstream stream;
-    stream << "inputTrajectory dimension mismatch vs active reference: expected "
-           << expectedInputDim << ", got " << inputDim << ".";
-    throwTargetTrajectoriesError(stream.str());
-  }
-  if (hasReferenceInput && targetTrajectories.inputTrajectory.empty() &&
-      expectedInputDim > 0) {
-    std::ostringstream stream;
-    stream << "inputTrajectory is empty but active reference expects dimension "
-           << expectedInputDim << ".";
-    throwTargetTrajectoriesError(stream.str());
-  }
-  if (hasReferenceInput && expectedInputDim == 0 &&
-      !targetTrajectories.inputTrajectory.empty()) {
-    for (size_t i = 0; i < N; i++) {
-      if (targetTrajectories.inputTrajectory[i].size() != 0) {
-        std::ostringstream stream;
-        stream << "inputTrajectory must be zero-dimension at index " << i
-               << " to match active reference.";
-        throwTargetTrajectoriesError(stream.str());
-      }
-    }
-  }
-}
-
-}  // namespace
 
 /******************************************************************************************************/
 /******************************************************************************************************/
@@ -190,30 +79,18 @@ void MPC_ROS_Interface::resetMpcNode(
 void MPC_ROS_Interface::resetMpcCallback(
     const std::shared_ptr<ocs2_msgs::srv::Reset::Request> req,
     std::shared_ptr<ocs2_msgs::srv::Reset::Response> res) {
-  if (req->reset) {
-    try {
-      auto targetTrajectories = ros_msg_conversions::readTargetTrajectoriesMsg(
-          req->target_trajectories);
-      const auto& referenceTrajectories =
-          mpc_.getSolverPtr()->getReferenceManager().getTargetTrajectories();
-      validateResetTargetTrajectories(targetTrajectories, referenceTrajectories);
+  if (static_cast<bool>(req->reset)) {
+    auto targetTrajectories = ros_msg_conversions::readTargetTrajectoriesMsg(
+        req->target_trajectories);
+    resetMpcNode(std::move(targetTrajectories));
+    res->done = static_cast<uint8_t>(true);
 
-      resetMpcNode(std::move(targetTrajectories));
-      res->done = true;
-
-      std::cerr << "\n#####################################################"
-                << "\n#####################################################"
-                << "\n#################  MPC is reset.  ###################"
-                << "\n#####################################################"
-                << "\n#####################################################\n";
-    } catch (const std::exception& e) {
-      res->done = false;
-      RCLCPP_ERROR_STREAM(LOGGER,
-                          "[MPC_ROS_Interface] Reset request failed: "
-                              << e.what());
-    }
+    std::cerr << "\n#####################################################"
+              << "\n#####################################################"
+              << "\n#################  MPC is reset.  ###################"
+              << "\n#####################################################"
+              << "\n#####################################################\n";
   } else {
-    res->done = false;
     RCLCPP_WARN_STREAM(LOGGER, "[MPC_ROS_Interface] Reset request failed!");
   }
 }
@@ -407,55 +284,10 @@ void MPC_ROS_Interface::mpcObservationCallback(
   if (mpc_.settings().solutionTimeWindow_ < 0) {
     timeWindow = mpc_.getSolverPtr()->getFinalTime() - currentObservation.time;
   }
-  const auto& performanceIndices = mpc_.getSolverPtr()->getPerformanceIndeces();
-  diagnostic_msgs::msg::DiagnosticStatus solverStatus;
-  solverStatus.name = topicPrefix_ + "/mpc_solver";
-  solverStatus.hardware_id = topicPrefix_;
-  solverStatus.level = diagnostic_msgs::msg::DiagnosticStatus::OK;
-  solverStatus.message = "ok";
-  const auto addValue = [&solverStatus](const std::string& key,
-                                        const std::string& value) {
-    diagnostic_msgs::msg::KeyValue kv;
-    kv.key = key;
-    kv.value = value;
-    solverStatus.values.push_back(std::move(kv));
-  };
-  solverStatus.values.reserve(12);
-  addValue("solve_time_last_ms",
-           std::to_string(mpcTimer_.getLastIntervalInMilliseconds()));
-  addValue("solve_time_avg_ms",
-           std::to_string(mpcTimer_.getAverageInMilliseconds()));
-  addValue("solve_time_max_ms",
-           std::to_string(mpcTimer_.getMaxIntervalInMilliseconds()));
-  addValue("solve_time_samples",
-           std::to_string(mpcTimer_.getNumTimedIntervals()));
-  addValue("ddp_iterations_used",
-           std::to_string(mpc_.getSolverPtr()->getNumIterations()));
-  addValue("perf_merit", std::to_string(performanceIndices.merit));
-  addValue("perf_cost", std::to_string(performanceIndices.cost));
-  addValue("perf_dual_feas_sse",
-           std::to_string(performanceIndices.dualFeasibilitiesSSE));
-  addValue("perf_dynamics_violation_sse",
-           std::to_string(performanceIndices.dynamicsViolationSSE));
-  addValue("perf_eq_constraints_sse",
-           std::to_string(performanceIndices.equalityConstraintsSSE));
-  addValue("perf_ineq_constraints_sse",
-           std::to_string(performanceIndices.inequalityConstraintsSSE));
-  addValue("perf_eq_lagrangian",
-           std::to_string(performanceIndices.equalityLagrangian));
-  addValue("perf_ineq_lagrangian",
-           std::to_string(performanceIndices.inequalityLagrangian));
   if (timeWindow < 2.0 * mpcTimer_.getAverageInMilliseconds() * 1e-3) {
-    solverStatus.level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
-    solverStatus.message =
-        "solution time window might be shorter than the MPC delay";
     std::cerr << "WARNING: The solution time window might be shorter than the "
                  "MPC delay!\n";
   }
-  diagnostic_msgs::msg::DiagnosticArray solverDiagnosticsMsg;
-  solverDiagnosticsMsg.header.stamp = node_->now();
-  solverDiagnosticsMsg.status.push_back(std::move(solverStatus));
-  mpcSolverDiagnosticsPublisher_->publish(std::move(solverDiagnosticsMsg));
 
   // display
   if (mpc_.settings().debugPrint_) {
@@ -480,7 +312,7 @@ void MPC_ROS_Interface::mpcObservationCallback(
   ocs2_msgs::msg::MpcFlattenedController mpcPolicyMsg =
       createMpcPolicyMsg(*bufferPrimalSolutionPtr_, *bufferCommandPtr_,
                          *bufferPerformanceIndicesPtr_);
-  mpcPolicyPublisher_->publish(mpcPolicyMsg);
+  mpcPolicyPublisher_.publish(mpcPolicyMsg);
 #endif
 }
 
@@ -510,11 +342,10 @@ void MPC_ROS_Interface::shutdownNode() {
 /******************************************************************************************************/
 void MPC_ROS_Interface::spin() {
   RCLCPP_INFO(LOGGER, "Start spinning now ...");
-  if (!node_) {
-    throw std::runtime_error(
-        "[MPC_ROS_Interface::spin] launchNodes() must be called before spin().");
+  // Equivalent to ros::spin() + check if master is alive
+  while (rclcpp::ok()) {
+    rclcpp::spin(node_);
   }
-  rclcpp::spin(node_);
 }
 
 /******************************************************************************************************/
@@ -522,10 +353,6 @@ void MPC_ROS_Interface::spin() {
 /******************************************************************************************************/
 void MPC_ROS_Interface::launchNodes(const rclcpp::Node::SharedPtr& node) {
   RCLCPP_INFO(LOGGER, "MPC node is setting up ...");
-  if (!node) {
-    throw std::runtime_error(
-        "[MPC_ROS_Interface::launchNodes] node is null.");
-  }
   node_ = node;
 
   // Observation subscriber
@@ -536,14 +363,9 @@ void MPC_ROS_Interface::launchNodes(const rclcpp::Node::SharedPtr& node) {
                     std::placeholders::_1));
 
   // MPC publisher
-  const auto latchedQos =
-      rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable();
   mpcPolicyPublisher_ =
       node_->create_publisher<ocs2_msgs::msg::MpcFlattenedController>(
-          topicPrefix_ + "_mpc_policy", latchedQos);
-  mpcSolverDiagnosticsPublisher_ =
-      node_->create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-          topicPrefix_ + "_mpc_solver_diagnostics", 10);
+          topicPrefix_ + "_mpc_policy", 1);
 
   // MPC reset service server
   mpcResetServiceServer_ = node_->create_service<ocs2_msgs::srv::Reset>(

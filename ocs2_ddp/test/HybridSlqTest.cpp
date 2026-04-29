@@ -88,7 +88,7 @@ TEST(HybridSlqTest, state_rollout_slq) {
     settings.useFeedbackPolicy_ = true;
     settings.debugPrintRollout_ = false;
     settings.strategy_ = search_strategy::Type::LINE_SEARCH;
-    settings.lineSearch_.minStepLength = 1e-3;
+    settings.lineSearch_.minStepLength = 1e-4;
 
     return settings;
   }();
@@ -138,7 +138,7 @@ TEST(HybridSlqTest, state_rollout_slq) {
   auto boundsConstraintsObserverPtr = SolverObserver::LagrangianTermObserver(
       SolverObserver::Type::Intermediate, "bounds",
       [&](const scalar_array_t& timeTraj, const std::vector<LagrangianMetricsConstRef>& metricsTraj) {
-        constexpr scalar_t constraintViolationTolerance = 1.0;
+        constexpr scalar_t constraintViolationTolerance = 1e-1;
         for (size_t i = 0; i < metricsTraj.size(); i++) {
           const vector_t constraintViolation = metricsTraj[i].constraint.cwiseMin(0.0);
           EXPECT_NEAR(constraintViolation(0), 0.0, constraintViolationTolerance) << "At time " << timeTraj[i] << "\n";

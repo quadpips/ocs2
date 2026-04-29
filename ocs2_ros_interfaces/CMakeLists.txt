@@ -1,21 +1,52 @@
 cmake_minimum_required(VERSION 3.5)
 project(ocs2_ros_interfaces)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+# find_package(ament_cmake_auto REQUIRED) 
+# ament_auto_find_build_dependencies()
 
+## Find ament_cmake macros and libraries
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
-find_package(diagnostic_msgs REQUIRED)
 find_package(ocs2_msgs REQUIRED)
-find_package(ocs2_core REQUIRED)
 find_package(ocs2_mpc REQUIRED)
 find_package(std_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(interactive_markers REQUIRED)
+
 find_package(Eigen3 3.3 REQUIRED NO_MODULE)
-find_package(Boost REQUIRED COMPONENTS system filesystem log_setup log)
+find_package(Boost REQUIRED COMPONENTS
+  system
+  filesystem
+  log_setup
+  log
+)
+
+
+
+
+set(dependencies
+  rclcpp
+  ocs2_msgs
+  ocs2_core
+  ocs2_mpc
+  std_msgs
+  visualization_msgs
+  geometry_msgs
+  interactive_markers
+  Boost
+)
+
+###########
+## Build ##
+###########
+
+## Specify additional locations of header files
+include_directories(
+  include
+  ${EIGEN3_INCLUDE_DIRS}
+  ${Boost_INCLUDE_DIRS}
+)
 
 add_library(${PROJECT_NAME}
   src/command/TargetTrajectoriesRosPublisher.cpp
@@ -32,91 +63,84 @@ add_library(${PROJECT_NAME}
   src/visualization/VisualizationHelpers.cpp
   src/visualization/VisualizationColors.cpp
 )
-target_include_directories(${PROJECT_NAME}
-  PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-    $<INSTALL_INTERFACE:include>
-    ${EIGEN3_INCLUDE_DIRS}
-)
 ament_target_dependencies(${PROJECT_NAME}
-  rclcpp
-  diagnostic_msgs
-  ocs2_msgs
-  ocs2_core
-  ocs2_mpc
-  std_msgs
-  visualization_msgs
-  geometry_msgs
-  interactive_markers
+  ${dependencies}
 )
 target_compile_options(${PROJECT_NAME} PUBLIC ${OCS2_CXX_FLAGS})
+
+add_executable(test_custom_callback_queue
+  test/test_custom_callback_queue.cpp
+)
+ament_target_dependencies(test_custom_callback_queue
+  ${dependencies}
+)
+target_link_libraries(test_custom_callback_queue
+  ${PROJECT_NAME}
+)
+target_compile_options(test_custom_callback_queue PRIVATE ${OCS2_CXX_FLAGS})
 
 # multiplot remap node
 add_executable(multiplot_remap
   src/multiplot/MultiplotRemap.cpp
 )
-target_link_libraries(multiplot_remap
+ament_target_dependencies(multiplot_remap
+  ${dependencies} 
+)
+target_link_libraries(test_custom_callback_queue
   ${PROJECT_NAME}
 )
 target_compile_options(multiplot_remap PRIVATE ${OCS2_CXX_FLAGS})
+
+add_executable(${PROJECT_NAME}_lintTarget
+  src/lintTarget.cpp
+)
+ament_target_dependencies(${PROJECT_NAME}_lintTarget
+  ${dependencies} 
+)
+target_link_libraries(${PROJECT_NAME}_lintTarget
+  ${PROJECT_NAME}
+)
+
+#########################
+###   CLANG TOOLING   ###
+#########################
+find_package(cmake_clang_tools QUIET)
+if(cmake_clang_tools_FOUND)
+  message(STATUS "Run clang tooling for target " ${PROJECT_NAME}_lintTarget)
+  add_clang_tooling(
+  TARGETS ${PROJECT_NAME}_lintTarget
+    SOURCE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR}/include
+    CT_HEADER_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
+    CF_WERROR
+)
+endif(cmake_clang_tools_FOUND)
 
 #############
 ## Install ##
 #############
 
-install(TARGETS ${PROJECT_NAME}
+install(
+  TARGETS ${PROJECT_NAME}
   EXPORT export_${PROJECT_NAME}
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION bin
-)
-install(TARGETS multiplot_remap
-  RUNTIME DESTINATION lib/${PROJECT_NAME}
+  INCLUDES DESTINATION include/${PROJECT_NAME}
 )
 
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION include/${PROJECT_NAME}
-)
+install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
+install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
+install(TARGETS multiplot_remap DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY launch multiplot
-  DESTINATION share/${PROJECT_NAME}
+  DESTINATION include/${PROJECT_NAME}/
 )
 
-install(
-  EXPORT export_${PROJECT_NAME}
-  DESTINATION share/${PROJECT_NAME}/cmake
-)
+#############
+## Testing ##
+#############
 
-ament_export_include_directories(
-  include
-  ${EIGEN3_INCLUDE_DIRS}
-)
+ament_export_dependencies(${dependencies})  
+ament_export_include_directories("include/${PROJECT_NAME}")
 ament_export_targets(export_${PROJECT_NAME} HAS_LIBRARY_TARGET)
-ament_export_dependencies(
-  rclcpp
-  diagnostic_msgs
-  ocs2_msgs
-  ocs2_core
-  ocs2_mpc
-  std_msgs
-  visualization_msgs
-  geometry_msgs
-  interactive_markers
-  Eigen3
-  Boost
-)
-
-############
-# Testing ##
-############
-
-if(BUILD_TESTING)
-  add_executable(test_custom_callback_queue
-    test/test_custom_callback_queue.cpp
-  )
-  target_link_libraries(test_custom_callback_queue
-    ${PROJECT_NAME}
-  )
-  target_compile_options(test_custom_callback_queue PRIVATE ${OCS2_CXX_FLAGS})
-endif()
-
 ament_package()
+# ament_auto_package()

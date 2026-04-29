@@ -29,6 +29,8 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <ocs2_core/cost/StateInputCostCollection.h>
 
+#include <iostream>
+
 namespace ocs2 {
 
 /******************************************************************************************************/
@@ -66,22 +68,36 @@ scalar_t StateInputCostCollection::getValue(scalar_t time, const vector_t& state
 ScalarFunctionQuadraticApproximation StateInputCostCollection::getQuadraticApproximation(scalar_t time, const vector_t& state,
                                                                                          const vector_t& input,
                                                                                          const TargetTrajectories& targetTrajectories,
-                                                                                         const PreComputation& preComp) const {
+                                                                                         const PreComputation& preComp) const 
+{
+  // std::cout << "[StateCostCollection::getQuadraticApproximation] started " << std::endl;
+
   const auto firstActive = std::find_if(terms_.begin(), terms_.end(),
                                         [time](const std::unique_ptr<StateInputCost>& costTerm) { return costTerm->isActive(time); });
+
+  // std::cout << "[StateCostCollection::getQuadraticApproximation] 1 " << std::endl;
 
   // No active terms (or terms is empty).
   if (firstActive == terms_.end()) {
     return ScalarFunctionQuadraticApproximation::Zero(state.rows(), input.rows());
   }
 
+  // std::cout << "[StateCostCollection::getQuadraticApproximation] 2" << std::endl;
+
   // Initialize with first active term, accumulate potentially other active terms.
   auto cost = (*firstActive)->getQuadraticApproximation(time, state, input, targetTrajectories, preComp);
-  std::for_each(std::next(firstActive), terms_.end(), [&](const std::unique_ptr<StateInputCost>& costTerm) {
-    if (costTerm->isActive(time)) {
+
+  // std::cout << "[StateCostCollection::getQuadraticApproximation] 3 " << std::endl;
+
+  std::for_each(std::next(firstActive), terms_.end(), [&](const std::unique_ptr<StateInputCost>& costTerm) 
+  {
+    if (costTerm->isActive(time)) 
+    {
       cost += costTerm->getQuadraticApproximation(time, state, input, targetTrajectories, preComp);
     }
   });
+
+  // std::cout << "[StateCostCollection::getQuadraticApproximation] finished " << std::endl;
 
   return cost;
 }
