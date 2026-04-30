@@ -10,7 +10,7 @@ def load_file_content(file_path):
         return file.read()  
 
 def generate_launch_description():
-    description_name = get_package_share_directory("go2_description") + "/urdf/go2_payload.urdf"
+    description_name = get_package_share_directory("go2_description") + "/urdf/go2_description.urdf"
     ld = launch.LaunchDescription([
         launch.actions.IncludeLaunchDescription(
             launch.launch_description_sources.PythonLaunchDescriptionSource(
